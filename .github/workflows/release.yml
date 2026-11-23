@@ -1,0 +1,135 @@
+name: Package and Release Addon
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (package zip and verify contents without uploading)'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate .pkgmeta from .gitignore and .curseignore
+        shell: python
+        run: |
+          import os
+          import re
+          from pathlib import Path
+
+          root = Path(".")
+
+          def parse_ignore_file(path: Path):
+              blacklist = []
+              whitelist = []
+              if not path.exists():
+                  return blacklist, whitelist
+              for raw in path.read_text(encoding="utf-8").splitlines():
+                  line = raw.strip()
+                  if not line or line.startswith("#"):
+                      continue
+                  line = line.replace("\\", "/")
+                  is_whitelist = line.startswith("!")
+                  if is_whitelist:
+                      line = line[1:]
+                  is_rooted = line.startswith("/")
+                  if is_rooted:
+                      line = line[1:]
+                  is_dir = line.endswith("/")
+                  if is_dir:
+                      line = line[:-1]
+
+                  regex = re.escape(line)
+                  regex = regex.replace(r"\*", ".*").replace(r"\?", ".")
+                  regex = ("^" if is_rooted else "(^|/)") + regex
+                  regex = regex + ("(/|$)" if is_dir else "($|/)")
+
+                  compiled = re.compile(regex)
+                  if is_whitelist:
+                      whitelist.append(compiled)
+                  else:
+                      blacklist.append(compiled)
+              return blacklist, whitelist
+
+          git_bl, git_wl = parse_ignore_file(root / ".gitignore")
+          cf_bl, cf_wl = parse_ignore_file(root / ".curseignore")
+
+          always_ignore = {
+              ".git",
+              ".gitignore",
+              ".curseignore",
+              ".pkgmeta",
+              "wow_paths.json",
+          }
+
+          ignored_paths = set()
+          for p in sorted(root.rglob("*")):
+              if p.is_dir():
+                  continue
+              rel = p.relative_to(root).as_posix()
+              if rel == ".git" or rel.startswith(".git/"):
+                  continue
+
+              # Whitelist in .curseignore overrides both ignore lists (e.g. !/README.md)
+              if any(rx.search(rel) for rx in cf_wl):
+                  continue
+
+              if rel in always_ignore or rel.split("/")[0] in {".github", ".agents", ".agent", ".antigravity", ".githooks", ".vscode"}:
+                  ignored_paths.add(rel)
+                  continue
+
+              if any(rx.search(rel) for rx in cf_bl):
+                  ignored_paths.add(rel)
+                  continue
+
+              # .gitignore applies unless explicitly whitelisted in .gitignore
+              if not any(rx.search(rel) for rx in git_wl) and any(rx.search(rel) for rx in git_bl):
+                  ignored_paths.add(rel)
+
+          lines = ["package-as: Library Books Tracker", ""]
+          if (root / "CHANGELOG.md").exists():
+              lines.extend([
+                  "manual-changelog:",
+                  "  filename: CHANGELOG.md",
+                  "  markup-type: markdown",
+                  "",
+              ])
+          lines.append("ignore:")
+          for item in sorted(ignored_paths):
+              lines.append(f"  - {item}")
+          # Also ignore dot-directories at top level in case empty/nested
+          for d in [".agents", ".agent", ".antigravity", ".github", ".githooks", ".vscode"]:
+              if (root / d).exists():
+                  lines.append(f"  - {d}")
+
+          pkgmeta_text = "\n".join(lines) + "\n"
+          Path(".pkgmeta").write_text(pkgmeta_text, encoding="utf-8")
+          print("Generated .pkgmeta:\n" + pkgmeta_text)
+
+      - name: Run WoW Addon Packager
+        uses: BigWigsMods/packager@v2
+        with:
+          args: ${{ inputs.dry_run && '-d' || '' }}
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+
+      - name: Verify Packaged Zip (Dry Run)
+        if: inputs.dry_run
+        run: |
+          ls -la .release/
+          unzip -l .release/*.zip

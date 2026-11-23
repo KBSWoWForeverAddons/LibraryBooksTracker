@@ -5,6 +5,7 @@
 ## Version: 1.0.0
 ## IconTexture: Interface\Icons\INV_Misc_Rune_06
 ## SavedVariables: LibraryBooksTrackerDB
+## X-Curse-Project-ID: 1826787
 
 Data.lua
 Tracker.lua
