@@ -108,7 +108,9 @@ local function FormatBookRow(row, entry, showTierTag)
     local diff = entry.difficulty
 
     -- Left status / tier badge
-    if showTierTag and entry.tierMilestone then
+    if showTierTag and book.category == "level60" then
+        row.badge:SetText("|cFFC080FF[Lv60]|r")
+    elseif showTierTag and entry.tierMilestone then
         local tColors = { "|cFF40E659[Tier 1]|r", "|cFF33CCFF[Tier 2]|r", "|cFFFFD933[Tier 3]|r" }
         row.badge:SetText(tColors[entry.tierMilestone] or "|cFFAAAAAA[Extra]|r")
     elseif entry.status == "turned_in" then
@@ -246,7 +248,23 @@ function ns.RefreshTrackerUI()
     local items = {}
 
     if activeTab == "recommended" then
+        local combined = {}
         for _, entry in ipairs(s.missingSorted) do
+            table.insert(combined, entry)
+        end
+        for _, entry in ipairs(l60.missingSorted) do
+            table.insert(combined, entry)
+        end
+        table.sort(combined, function(a, b)
+            if a.difficulty.effectiveMin ~= b.difficulty.effectiveMin then
+                return a.difficulty.effectiveMin < b.difficulty.effectiveMin
+            end
+            if a.difficulty.effectiveScore ~= b.difficulty.effectiveScore then
+                return a.difficulty.effectiveScore < b.difficulty.effectiveScore
+            end
+            return a.book.name < b.book.name
+        end)
+        for _, entry in ipairs(combined) do
             table.insert(items, { kind = "book", entry = entry, showTier = true })
         end
     elseif activeTab == "all" then
