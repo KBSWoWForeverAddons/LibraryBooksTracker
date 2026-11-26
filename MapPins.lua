@@ -241,11 +241,11 @@ function WorldMapProvider:RefreshAllData()
     for _, pinData in ipairs(pins) do
         local pin = AcquireWorldPin(canvas)
         pin.pinData = pinData
-        pin:SetSize(pinData.size, pinData.size)
+        pin:SetScale(1)
+        pin:SetSize(pinData.size / scale, pinData.size / scale)
         pin.tex:SetTexture(pinData.texture)
-        pin:SetScale(1 / scale)
         pin:ClearAllPoints()
-        pin:SetPoint("CENTER", canvas, "TOPLEFT", pinData.x * width * scale / scale, -pinData.y * height)
+        pin:SetPoint("CENTER", canvas, "TOPLEFT", pinData.x * width, -pinData.y * height)
         table.insert(activeWorldPins, pin)
     end
 end
@@ -256,7 +256,10 @@ function WorldMapProvider:OnCanvasScaleChanged()
     local scale = map:GetCanvasScale() or 1
     if scale <= 0 then scale = 1 end
     for _, pin in ipairs(activeWorldPins) do
-        pin:SetScale(1 / scale)
+        if pin.pinData then
+            pin:SetScale(1)
+            pin:SetSize(pin.pinData.size / scale, pin.pinData.size / scale)
+        end
     end
 end
 
