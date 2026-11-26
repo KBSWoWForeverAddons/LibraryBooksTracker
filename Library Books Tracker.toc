@@ -2,7 +2,7 @@
 ## Title: |cFFFF007FLibrary Books Tracker|r
 ## Notes: Tracks Library Books (collected, turned in, missing), tier rewards (10/20/25), level-based route priority, and Cozy Sleeping Bag pins.
 ## Author: Custom Rewrite
-## Version: 1.0.0
+## Version: 1.0.1
 ## IconTexture: Interface\Icons\INV_Misc_Rune_06
 ## SavedVariables: LibraryBooksTrackerDB
 ## X-Curse-Project-ID: 1826787

@@ -1,5 +1,13 @@
 # Changelog
 
+## [v1.0.1] - 2026-11-26
+
+### Changed
+- **Recommended Next** tab now includes missing **Level 60 Books** (tagged `[Lv60]`) alongside standard books so all missing books appear in one unified list.
+
+### Fixed
+- Fixed World Map pin positions shifting away from their true coordinates when zoomed out (`pin:SetScale(1 / scale)` replaced with size scaling).
+
 ## [v1.0.0] - 2026-11-23
 
 ### Added
